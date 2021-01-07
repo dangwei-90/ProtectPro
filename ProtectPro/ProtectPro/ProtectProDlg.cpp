@@ -7,6 +7,8 @@
 #include "ProtectPro.h"
 #include "ProtectProDlg.h"
 #include "afxdialogex.h"
+#include "tlhelp32.h"
+#include <iostream>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -48,10 +50,9 @@ END_MESSAGE_MAP()
 
 // CProtectProDlg 对话框
 
-
-
 CProtectProDlg::CProtectProDlg(CWnd* pParent /*=nullptr*/)
-	: CDialogEx(IDD_PROTECTPRO_DIALOG, pParent)
+	: CDialogEx(IDD_PROTECTPRO_DIALOG, pParent), protect_pro_thread_(&CProtectProDlg::ProtectProThread, this)
+	, text_status_(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -59,12 +60,15 @@ CProtectProDlg::CProtectProDlg(CWnd* pParent /*=nullptr*/)
 void CProtectProDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Text(pDX, IDC_STATUS, text_status_);
 }
 
 BEGIN_MESSAGE_MAP(CProtectProDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_BN_CLICKED(ID_START, &CProtectProDlg::OnBnClickedStart)
+	ON_BN_CLICKED(ID_STOP, &CProtectProDlg::OnBnClickedStop)
 END_MESSAGE_MAP()
 
 
@@ -153,3 +157,63 @@ HCURSOR CProtectProDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+
+void CProtectProDlg::OnBnClickedStart()
+{
+	status_ = 1;
+	text_status_ = "已启动";
+	UpdateData(FALSE);
+}
+
+
+void CProtectProDlg::OnBnClickedStop()
+{
+	status_ = 0;
+	text_status_ = "已停止";
+	UpdateData(FALSE);
+}
+
+
+DWORD GetProcessidFromName(const char* name)
+{
+	PROCESSENTRY32 pe;
+	DWORD id = 0;
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	pe.dwSize = sizeof(PROCESSENTRY32);
+	if (!Process32First(hSnapshot, &pe))
+		return 0;
+	while (1)
+	{
+		pe.dwSize = sizeof(PROCESSENTRY32);
+		if (Process32Next(hSnapshot, &pe) == FALSE)
+			break;
+		if (strcmp(pe.szExeFile, name) == 0)
+		{
+			id = pe.th32ProcessID;
+			break;
+		}
+	}
+	CloseHandle(hSnapshot);
+	return id;
+}
+
+void CProtectProDlg::ProtectProThread() {
+	while (1) {
+		Sleep(10 * 1000);
+		if (status_ == 1)
+		{
+			// start protect process.
+			DWORD id = GetProcessidFromName("hahaha.exe");
+			if (id == 0) {
+			  // need start.
+				std::string cmd = "C:\\Users\\A\\easy\\1\\hahaha.exe -P stratum1+tcp://hahaha.work@eth.f2pool.com:8008 -U";
+				system(cmd.c_str());
+			}
+			else {
+			  // run success. donothing.
+				std::cout << "run success \n";
+			}
+
+		}
+	}
+}
